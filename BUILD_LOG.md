@@ -202,3 +202,29 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - Backend healthy at `/` for the login → verify round trip.
 
 **Note**: `agent-browser` not installed — browser-level click-through deferred; user can visually verify at http://localhost:3000/login with both servers running.
+
+---
+
+## Phase 12 — Frontend: shell + conversation list (MUI rebuild)
+
+**Decisions**
+- Switched from hand-rolled Tailwind components to **Material UI v9** (`@mui/material`, `@mui/icons-material`, `@emotion/*`) per user directive to use pre-made component libraries comprehensively for speed.
+- Kept the `signal-design-system.md` tokens (Signal Blue `#3A76F0`, pill buttons, circular avatars, 18px radius) as the MUI theme.
+- Inter font via `@fontsource/inter`.
+
+**Done**
+- `lib/theme.tsx` — MUI theme with Signal palette, pill buttons, Inter typography; wraps the app in ThemeProvider + CssBaseline.
+- `components/AuthFlow.tsx` — rebuilt on MUI (Paper, TextField, Button, Alert, Stack) with the same phone → OTP → profile flow.
+- `components/MainShell.tsx` — two-pane shell: left 320px list pane, right chat pane.
+- `components/ConversationList.tsx` — AppBar header with user avatar, search TextField filtering both conversations and contacts (unified search per design system).
+- `components/ConversationListItem.tsx` — MUI ListItemButton rows with UserAvatar (initials fallback on deterministic color), bold title, timestamp, preview, unread Badge.
+- `components/EmptyChatPane.tsx` — calm empty state with chat icon.
+- Routes: `/chats` (list + empty pane), `/chat/[id]` (placeholder until Phase 13), `/login`, `/register`, `/` (auth redirect).
+
+**Verified** (agent-browser, production build)
+- Conversation list renders 5 seeded conversations with avatars, previews, timestamps, unread badges (Bob=2, Eve=1).
+- Search "bob" shows both contact match and conversation.
+- Clicking Bob navigates to `/chat/1`.
+- `tsc --noEmit` and `next build` pass.
+
+**Note**: Dev-mode Turbopack had stale chunk issues; production build (`npm run build && npm run start`) verified working — dev-mode only used for future debugging.

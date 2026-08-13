@@ -2,9 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Container,
+  Link,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { api, ApiError } from "@/lib/api";
 import { useStore } from "@/lib/store";
-import OtpInput from "@/components/OtpInput";
 import type { User } from "@/lib/types";
 
 interface AuthResponse {
@@ -23,7 +34,7 @@ export default function AuthFlow({ mode }: { mode: "login" | "register" }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const submitPhone = async (e: React.FormEvent) => {
+  const requestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -45,23 +56,22 @@ export default function AuthFlow({ mode }: { mode: "login" | "register" }) {
     }
   };
 
-  const submitOtp = async (e: React.FormEvent) => {
+  const verifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.length !== 6) return;
     setError(null);
+    if (mode === "register") {
+      setStep("profile");
+      return;
+    }
     setLoading(true);
     try {
-      if (mode === "register") {
-        // Register collects profile info before creating the user.
-        setStep("profile");
-      } else {
-        const res = await api.post<AuthResponse>("/auth/login/verify", {
-          phone_number: phone,
-          otp,
-        });
-        setAuth(res.access_token, res.user);
-        router.push("/");
-      }
+      const res = await api.post<AuthResponse>("/auth/login/verify", {
+        phone_number: phone,
+        otp,
+      });
+      setAuth(res.access_token, res.user);
+      router.push("/chats");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid code");
     } finally {
@@ -85,7 +95,7 @@ export default function AuthFlow({ mode }: { mode: "login" | "register" }) {
         display_name: displayName.trim(),
       });
       setAuth(res.access_token, res.user);
-      router.push("/");
+      router.push("/chats");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not complete profile");
     } finally {
@@ -94,116 +104,155 @@ export default function AuthFlow({ mode }: { mode: "login" | "register" }) {
   };
 
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center bg-signal-bg px-6">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-signal-blue text-2xl font-semibold text-white">
-            S
-          </div>
-          <h1 className="text-xl font-semibold text-ink">
-            {mode === "register" ? "Create your account" : "Welcome back"}
-          </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            {step === "phone" && "Enter your phone number to get started"}
-            {step === "otp" && `Enter the 6-digit code sent to ${phone}`}
-            {step === "profile" && "Set up your profile"}
-          </p>
-        </div>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.default",
+        p: 2,
+      }}
+    >
+      <Container maxWidth="xs">
+        <Paper elevation={0} sx={{ p: 4 }}>
+          <Stack spacing={1} sx={{ alignItems: "center", mb: 3 }}>
+            <Box
+              sx={{
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                bgcolor: "primary.main",
+                color: "white",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 24,
+                fontWeight: 700,
+                mb: 1,
+              }}
+            >
+              S
+            </Box>
+            <Typography variant="h6">
+              {mode === "register" ? "Create your account" : "Welcome back"}
+            </Typography>
+            <Typography variant="body2" align="center">
+              {step === "phone" && "Enter your phone number to get started"}
+              {step === "otp" && `Enter the 6-digit code sent to ${phone}`}
+              {step === "profile" && "Set up your profile"}
+            </Typography>
+          </Stack>
 
-        {error && (
-          <div className="mb-4 rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-            {error}
-          </div>
-        )}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
 
-        {step === "phone" && (
-          <form onSubmit={submitPhone} className="space-y-4">
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+15550001111"
-              className="w-full rounded-lg border border-black/15 bg-white px-4 py-3 text-base outline-none transition-colors duration-200 focus:border-signal-blue"
-              required
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={loading || phone.trim().length < 6}
-              className="w-full rounded-full bg-signal-blue py-3 text-base font-medium text-white transition-colors duration-200 hover:bg-signal-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Sending code..." : "Send verification code"}
-            </button>
-            <p className="text-center text-xs text-ink-faint">
-              {mode === "register" ? "Already have an account? " : "New here? "}
-              <a
-                href={mode === "register" ? "/login" : "/register"}
-                className="font-medium text-signal-blue hover:underline"
-              >
-                {mode === "register" ? "Log in" : "Create an account"}
-              </a>
-            </p>
-          </form>
-        )}
+          {step === "phone" && (
+            <Box component="form" onSubmit={requestOtp}>
+              <Stack spacing={2}>
+                <TextField
+                  label="Phone number"
+                  placeholder="+15550001111"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  autoFocus
+                  fullWidth
+                  autoComplete="tel"
+                />
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={loading || phone.trim().length < 6}
+                >
+                  {loading ? "Sending code..." : "Send verification code"}
+                </Button>
+                <Typography variant="caption" align="center">
+                  {mode === "register" ? "Already have an account? " : "New here? "}
+                  <Link href={mode === "register" ? "/login" : "/register"}>
+                    {mode === "register" ? "Log in" : "Create an account"}
+                  </Link>
+                </Typography>
+              </Stack>
+            </Box>
+          )}
 
-        {step === "otp" && (
-          <form onSubmit={submitOtp} className="space-y-4">
-            <OtpInput value={otp} onChange={setOtp} disabled={loading} />
-            <p className="text-center text-xs text-ink-faint">
-              Demo hint: the code is always <span className="font-semibold">123456</span>
-            </p>
-            <button
-              type="submit"
-              disabled={loading || otp.length !== 6}
-              className="w-full rounded-full bg-signal-blue py-3 text-base font-medium text-white transition-colors duration-200 hover:bg-signal-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Verifying..." : "Verify"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep("phone")}
-              className="w-full text-center text-sm text-signal-blue hover:underline"
-            >
-              Use a different number
-            </button>
-          </form>
-        )}
+          {step === "otp" && (
+            <Box component="form" onSubmit={verifyOtp}>
+              <Stack spacing={2}>
+                <TextField
+                  label="Verification code"
+                  value={otp}
+                  onChange={(e) =>
+                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  slotProps={{
+                    htmlInput: { inputMode: "numeric", maxLength: 6 },
+                  }}
+                  autoFocus
+                  fullWidth
+                  sx={{ "& input": { letterSpacing: "0.5em", fontSize: "1.25rem" } }}
+                />
+                <Typography variant="caption" align="center">
+                  Demo hint: the code is always <strong>123456</strong>
+                </Typography>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={loading || otp.length !== 6}
+                >
+                  {loading ? "Verifying..." : "Verify"}
+                </Button>
+                <Button onClick={() => setStep("phone")} sx={{ alignSelf: "center" }}>
+                  Use a different number
+                </Button>
+              </Stack>
+            </Box>
+          )}
 
-        {step === "profile" && (
-          <form onSubmit={submitProfile} className="space-y-4">
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Display name"
-              className="w-full rounded-lg border border-black/15 bg-white px-4 py-3 text-base outline-none transition-colors duration-200 focus:border-signal-blue"
-              autoFocus
-            />
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
-              className="w-full rounded-lg border border-black/15 bg-white px-4 py-3 text-base outline-none transition-colors duration-200 focus:border-signal-blue"
-              required
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-full bg-signal-blue py-3 text-base font-medium text-white transition-colors duration-200 hover:bg-signal-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Creating account..." : "Finish setup"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep("otp")}
-              className="w-full text-center text-sm text-signal-blue hover:underline"
-            >
-              Back
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
+          {step === "profile" && (
+            <Box component="form" onSubmit={submitProfile}>
+              <Stack spacing={2}>
+                <TextField
+                  label="Display name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  autoFocus
+                  fullWidth
+                />
+                <TextField
+                  label="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  fullWidth
+                />
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={loading}
+                >
+                  {loading ? "Creating account..." : "Finish setup"}
+                </Button>
+                <Button onClick={() => setStep("otp")} sx={{ alignSelf: "center" }}>
+                  Back
+                </Button>
+              </Stack>
+            </Box>
+          )}
+          {loading && (
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+              <CircularProgress size={24} />
+            </Box>
+          )}
+        </Paper>
+      </Container>
+    </Box>
   );
 }

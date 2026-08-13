@@ -1,7 +1,7 @@
 import MainShell from "@/components/MainShell";
 import EmptyChatPane from "@/components/EmptyChatPane";
 
-export default function ChatsPage() {
+export default function ChatPlaceholderPage() {
   return (
     <MainShell>
       <EmptyChatPane />

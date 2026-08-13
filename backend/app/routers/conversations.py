@@ -191,9 +191,11 @@ def list_conversations(
             unread_count=unread_count,
         )
         if last_message:
+            sender = db.get(User, last_message.sender_id)
             item.last_message = MessagePreview(
                 id=last_message.id,
                 sender_id=last_message.sender_id,
+                sender_name=sender.display_name if sender else None,
                 content=last_message.content,
                 created_at=last_message.created_at,
             )

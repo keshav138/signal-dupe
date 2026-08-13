@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { CircularProgress, Box } from "@mui/material";
 import { useStore } from "@/lib/store";
 
 export default function Home() {
@@ -18,8 +19,8 @@ export default function Home() {
   }, [initialized, user, router]);
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-signal-bg text-ink-muted">
-      Loading...
-    </div>
+    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress />
+    </Box>
   );
 }

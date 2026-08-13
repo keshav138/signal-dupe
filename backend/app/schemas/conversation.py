@@ -36,6 +36,7 @@ class UserSummary(BaseModel):
 class MessagePreview(BaseModel):
     id: int
     sender_id: int
+    sender_name: str | None = None
     content: str
     created_at: datetime
 

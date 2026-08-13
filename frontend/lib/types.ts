@@ -24,6 +24,7 @@ export interface ConversationListItem {
   last_message: {
     id: number;
     sender_id: number;
+    sender_name: string | null;
     content: string;
     created_at: string;
   } | null;
