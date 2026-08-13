@@ -273,3 +273,19 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - Python WS test: `message:read` → `conversation:update` with `unread_count: 0` broadcast to reader.
 - Vision check of screenshot: bubble corners are rounded rectangles (not pills), sent=blue/white, received=white/dark, blue double-ticks on read messages.
 - `tsc --noEmit` + production build pass; frontend + backend restarted with fixes.
+
+---
+
+## Fix — reply quote invisible on sender's own bubble
+
+**Root cause**
+- The sender's own reply bubble rendered the quote box with `rgba(255,255,255,0.25)` background and white text — invisible against the white chat background. (The DOM had the quote, but it was white-on-white.)
+- Additionally, the optimistic message was created with `reply_to: null`, so the quote only appeared after the server echo reconciled — and for the sender's own bubble the quote box was invisible anyway.
+
+**Fix**
+- Optimistic messages now resolve the quoted message locally (`reply_to_id` → full quote object from the local message list), so the quote shows instantly on send.
+- Reply quote box restyled: light Signal-blue tint `rgba(58,118,240,0.12)` with blue left border and dark text — visible on both own and received bubbles.
+
+**Verified**
+- Store check: optimistic reply message has full `reply_to` object with quoted content before any server echo.
+- DOM trace + vision screenshot: the "fixed reply flow" blue bubble shows a visible quote box ("You" + "Hi") with blue left border above the message text.

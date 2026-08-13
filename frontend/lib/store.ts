@@ -189,7 +189,11 @@ export const useStore = create<AppState>((set, get) => ({
 
   sendMessage: (payload) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    // Optimistic temp message.
+    // Resolve the quoted message locally for the optimistic bubble.
+    const list = get().messages[payload.conversation_id] || [];
+    const quoted = payload.reply_to_id
+      ? list.find((m) => m.id === payload.reply_to_id)
+      : null;
     const optimistic: Message = {
       id: -Date.now(),
       conversation_id: payload.conversation_id,
@@ -198,7 +202,15 @@ export const useStore = create<AppState>((set, get) => ({
       reply_to_id: payload.reply_to_id,
       created_at: new Date().toISOString(),
       sender: get().user,
-      reply_to: null,
+      reply_to: quoted
+        ? {
+            id: quoted.id,
+            sender_id: quoted.sender_id,
+            content: quoted.content,
+            created_at: quoted.created_at,
+            sender: quoted.sender,
+          }
+        : null,
       reactions: [],
       status: "sent",
       client_temp_id: payload.client_temp_id,
@@ -276,7 +288,7 @@ export const useStore = create<AppState>((set, get) => ({
       case "message:new": {
         const m = event.message;
         const existing = messages[m.conversation_id] || [];
-        // Reconcile optimistic by client_temp_id.
+        // Reconcile optimistic by client_temp_id; server payload is authoritative.
         let next = existing;
         if (event.client_temp_id) {
           const idx = existing.findIndex(

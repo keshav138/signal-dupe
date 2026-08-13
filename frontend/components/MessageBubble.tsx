@@ -82,17 +82,22 @@ export default function MessageBubble({
               py: 0.75,
               mb: 0.5,
               borderRadius: "12px",
-              bgcolor: isOwn ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.05)",
+              bgcolor: isOwn ? "rgba(58,118,240,0.12)" : "rgba(0,0,0,0.05)",
+              borderLeft: 3,
+              borderColor: isOwn ? "primary.main" : "rgba(0,0,0,0.2)",
               maxWidth: "100%",
             }}
           >
-            <Typography variant="caption" sx={{ display: "block", fontWeight: 600, color: isOwn ? "white" : "text.secondary" }}>
+            <Typography
+              variant="caption"
+              sx={{ display: "block", fontWeight: 600, color: isOwn ? "primary.main" : "text.secondary" }}
+            >
               {message.reply_to.sender?.id === user?.id ? "You" : message.reply_to.sender?.display_name}
             </Typography>
             <Typography
               variant="caption"
               noWrap
-              sx={{ display: "block", color: isOwn ? "rgba(255,255,255,0.85)" : "text.secondary" }}
+              sx={{ display: "block", color: "text.secondary" }}
             >
               {message.reply_to.content}
             </Typography>
