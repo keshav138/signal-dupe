@@ -60,3 +60,26 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - User search returns Bob when Alice searches, returns `[]` when searching self (`alice`).
 - `exclude_contacts=true` hides existing contacts.
 - Add contact works; duplicate add returns 400; delete returns `{"message":"Contact removed"}`.
+
+---
+
+## Phase 4 — Conversations
+
+**Done**
+- Added `app/schemas/conversation.py` (list item, detail, create/update/member models).
+- Added `app/routers/conversations.py` with:
+  - `POST /conversations/direct` — get-or-create direct chat between current user and target.
+  - `POST /conversations/group` — create group with members, creator as admin.
+  - `GET /conversations` — list sorted by `updated_at` desc, with last message preview, unread count, and `other_user` for direct chats.
+  - `GET /conversations/{id}` — detail with participants.
+  - `PATCH /conversations/{id}` — update name/avatar (admin only, group only).
+  - `POST /conversations/{id}/members` — add member (admin only, group only).
+  - `DELETE /conversations/{id}/members/{user_id}` — remove member (admin only, group only).
+- Added `Conversation.participants` and `ConversationParticipant.user` relationships.
+- Registered conversations router in `app/main.py`.
+
+**Verified**
+- Direct get-or-create returns same conversation on repeat.
+- Group create with 3 members; creator is admin.
+- List returns group first (most recent) and direct second, with `other_user` for direct.
+- Non-admin member add → 403; admin add/remove works; group name PATCH works.

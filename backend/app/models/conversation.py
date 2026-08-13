@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, utcnow
 
@@ -28,6 +28,10 @@ class Conversation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
+    participants: Mapped[list["ConversationParticipant"]] = relationship(
+        back_populates="conversation"
+    )
+
 
 class ConversationParticipant(Base):
     __tablename__ = "conversation_participants"
@@ -45,3 +49,6 @@ class ConversationParticipant(Base):
         ForeignKey("messages.id"), nullable=True
     )
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    conversation: Mapped["Conversation"] = relationship(back_populates="participants")
+    user: Mapped["User"] = relationship(foreign_keys=[user_id])
