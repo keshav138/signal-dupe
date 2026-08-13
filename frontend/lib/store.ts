@@ -64,9 +64,16 @@ function connectWs(get: () => AppState, set: (partial: Partial<AppState>) => voi
 
   ws.onopen = () => {
     set({ wsConnected: true });
+    if (wsHeartbeat) clearInterval(wsHeartbeat);
     wsHeartbeat = setInterval(() => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" }));
     }, 30000);
+    // Re-sync state after a (re)connect — we may have missed events while offline.
+    get().loadConversations();
+    const activeId = get().activeConversationId;
+    if (activeId !== null) {
+      get().openConversation(activeId);
+    }
   };
 
   ws.onmessage = (e) => {
@@ -81,9 +88,11 @@ function connectWs(get: () => AppState, set: (partial: Partial<AppState>) => voi
   ws.onclose = () => {
     if (wsHeartbeat) clearInterval(wsHeartbeat);
     set({ wsConnected: false });
+    // Exponential-ish backoff with jitter to avoid thundering herds.
+    const delay = Math.min(1500 + Math.random() * 2000, 5000);
     setTimeout(() => {
       if (get().token) connectWs(get, set);
-    }, 1500);
+    }, delay);
   };
 
   ws.onerror = () => ws?.close();
@@ -236,6 +245,11 @@ export const useStore = create<AppState>((set, get) => ({
 
   openConversation: async (id) => {
     set({ activeConversationId: id });
+    // Clear unread badge locally right away — don't wait for the WS round trip.
+    const convo = get().conversations.find((c) => c.id === id);
+    if (convo && convo.unread_count > 0) {
+      get().upsertConversation({ ...convo, unread_count: 0 });
+    }
     if (get().messages[id]) {
       // Mark read if there are messages.
       const msgs = get().messages[id];

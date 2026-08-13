@@ -133,17 +133,20 @@ async def websocket_endpoint(ws: WebSocket):
         except WebSocketDisconnect:
             pass
         finally:
-            manager.disconnect(user.id, ws)
-            user.last_seen = utcnow()
-            db.commit()
-            await manager.broadcast_to_users(
-                peers,
-                {
-                    "type": "presence",
-                    "user_id": user.id,
-                    "online": False,
-                    "last_seen": user.last_seen.isoformat(),
-                },
-            )
+            # Only broadcast offline if THIS socket is still the active one.
+            # A replaced socket must not announce the user as offline.
+            if manager.is_active(user.id, ws):
+                manager.disconnect(user.id, ws)
+                user.last_seen = utcnow()
+                db.commit()
+                await manager.broadcast_to_users(
+                    peers,
+                    {
+                        "type": "presence",
+                        "user_id": user.id,
+                        "online": False,
+                        "last_seen": user.last_seen.isoformat(),
+                    },
+                )
     finally:
         db.close()

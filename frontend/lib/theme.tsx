@@ -11,7 +11,7 @@ export const signalTheme = createTheme({
     divider: "rgba(0,0,0,0.08)",
     error: { main: "#D32F2F" },
   },
-  shape: { borderRadius: 18 },
+  shape: { borderRadius: 8 },
   typography: {
     fontFamily:
       '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',

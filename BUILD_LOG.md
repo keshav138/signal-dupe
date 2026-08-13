@@ -256,3 +256,20 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - Typing: Bob's `typing:start` renders "Bob Smith is typing" in the browser; clears on stop.
 - Settings page renders profile + all sections + logout.
 - `tsc --noEmit` and `next build` pass.
+
+---
+
+## Fixes — connection loop, bubbles, reply, unread badges
+
+**Root causes + fixes**
+1. **"Connection lost — reconnecting" loop** — my headless agent-browser test session was still logged in as Alice and holding the single WS slot, so my hidden browser and the user's browser kept kicking each other off (backend allows one connection per user). Closed all headless sessions; also hardened both sides:
+   - Backend: replaced sockets no longer broadcast a false "offline" presence; `manager.is_active(user.id, ws)` guard before disconnect broadcast.
+   - Frontend: reconnect backoff with jitter (1.5–3.5s), heartbeat interval cleared/reset on reopen, full state re-sync (`loadConversations` + active convo) on every WS open.
+2. **Bubble corners too round** — MUI numeric `borderRadius` multiplies the theme value; theme `shape.borderRadius` was 18px so `borderRadius: 2.5` rendered 45px pills. Fixed with explicit `"18px"` (tail `"6px"`) on bubbles, `"12px"` on reply quotes/composer bar, theme default now 8px.
+3. **Reply hard to find** — was hover-only tiny icon. Now: visible Reply + React icons on hover AND a right-click context menu on every message with Reply + 6 emoji reactions.
+4. **Unread badge not clearing without reload** — backend `message:read` now broadcasts `conversation:update` to all participants (reader included), so badges clear live; frontend also zeroes the badge locally the moment a conversation is opened.
+
+**Verified**
+- Python WS test: `message:read` → `conversation:update` with `unread_count: 0` broadcast to reader.
+- Vision check of screenshot: bubble corners are rounded rectangles (not pills), sent=blue/white, received=white/dark, blue double-ticks on read messages.
+- `tsc --noEmit` + production build pass; frontend + backend restarted with fixes.

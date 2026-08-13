@@ -32,6 +32,7 @@ export default function MessageBubble({
   const { sendReaction, removeReaction, user, setReplyTo } = useStore();
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
   const [hovered, setHovered] = useState(false);
+  const [contextAnchor, setContextAnchor] = useState<null | { x: number; y: number }>(null);
 
   const hasReacted = message.reactions.some((r) => r.user_id === user?.id);
 
@@ -42,6 +43,13 @@ export default function MessageBubble({
       sendReaction(message.id, emoji);
     }
     setAnchor(null);
+    setContextAnchor(null);
+  };
+
+  const handleReply = () => {
+    setReplyTo(message);
+    setAnchor(null);
+    setContextAnchor(null);
   };
 
   const groupedReactions = message.reactions.reduce<Record<string, number>>((acc, r) => {
@@ -53,6 +61,10 @@ export default function MessageBubble({
     <Box
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setContextAnchor({ x: e.clientX, y: e.clientY });
+      }}
       sx={{
         display: "flex",
         justifyContent: isOwn ? "flex-end" : "flex-start",
@@ -69,7 +81,7 @@ export default function MessageBubble({
               px: 1.5,
               py: 0.75,
               mb: 0.5,
-              borderRadius: 2,
+              borderRadius: "12px",
               bgcolor: isOwn ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.05)",
               maxWidth: "100%",
             }}
@@ -93,12 +105,14 @@ export default function MessageBubble({
           sx={{
             px: 1.75,
             py: 1,
-            borderRadius: 2.5,
-            borderTopRightRadius: isOwn ? 0.5 : 2.5,
-            borderTopLeftRadius: isOwn ? 2.5 : 0.5,
+            borderRadius: "18px",
+            borderTopRightRadius: isOwn ? "6px" : "18px",
+            borderTopLeftRadius: isOwn ? "18px" : "6px",
             bgcolor: isOwn ? "primary.main" : "background.paper",
             color: isOwn ? "white" : "text.primary",
             position: "relative",
+            border: isOwn ? undefined : 1,
+            borderColor: isOwn ? undefined : "divider",
           }}
         >
           <Typography variant="body1" sx={{ wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
@@ -134,12 +148,22 @@ export default function MessageBubble({
         </Box>
       </Box>
 
-      {/* Hover reaction button */}
+      {/* Hover actions: Reply + React */}
       {hovered && (
-        <Box sx={{ alignSelf: "center", ml: 0.5 }}>
+        <Box sx={{ alignSelf: "center", ml: 0.5, display: "flex", gap: 0.25 }}>
+          <Box
+            onClick={() => {
+              setReplyTo(message);
+            }}
+            sx={{ cursor: "pointer", color: "text.secondary", display: "flex", p: 0.5, "&:hover": { color: "primary.main" } }}
+            title="Reply"
+          >
+            <ReplyIcon fontSize="small" />
+          </Box>
           <Box
             onClick={(e) => setAnchor(e.currentTarget)}
-            sx={{ cursor: "pointer", color: "text.secondary", display: "flex" }}
+            sx={{ cursor: "pointer", color: "text.secondary", display: "flex", p: 0.5, "&:hover": { color: "primary.main" } }}
+            title="React"
           >
             <AddReactionIcon fontSize="small" />
           </Box>
@@ -152,13 +176,23 @@ export default function MessageBubble({
         onClose={() => setAnchor(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <MenuItem
-          onClick={() => {
-            setReplyTo(message);
-            setAnchor(null);
-          }}
-          sx={{ gap: 1 }}
-        >
+        <Box sx={{ display: "flex", px: 1, py: 0.5 }}>
+          {REACTION_EMOJIS.map((emoji) => (
+            <MenuItem key={emoji} onClick={() => handleReaction(emoji)} sx={{ minWidth: 0, p: 1, fontSize: 18 }}>
+              {emoji}
+            </MenuItem>
+          ))}
+        </Box>
+      </Menu>
+
+      {/* Right-click context menu: always-available Reply + React */}
+      <Menu
+        open={!!contextAnchor}
+        onClose={() => setContextAnchor(null)}
+        anchorReference="anchorPosition"
+        anchorPosition={contextAnchor ? { top: contextAnchor.y, left: contextAnchor.x } : undefined}
+      >
+        <MenuItem onClick={handleReply} sx={{ gap: 1 }}>
           <ReplyIcon fontSize="small" /> Reply
         </MenuItem>
         <Box sx={{ display: "flex", px: 1, py: 0.5 }}>

@@ -63,7 +63,7 @@ export default function MessageInput({ conversationId }: { conversationId: numbe
             px: 1.5,
             py: 0.75,
             mb: 1,
-            borderRadius: 2,
+            borderRadius: "12px",
             bgcolor: "rgba(58,118,240,0.08)",
             borderLeft: 4,
             borderColor: "primary.main",

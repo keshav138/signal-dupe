@@ -158,6 +158,9 @@ async def handle_message_read(
                 },
             )
 
+    # Broadcast updated unread counts so the reader's badge clears live.
+    await _broadcast_conversation_update(db, manager, conversation_id)
+
 
 async def handle_reaction_add(
     db: Session,
