@@ -181,3 +181,24 @@ This file tracks, per phase, what was implemented and any decisions made during 
 
 **Verified**
 - All 32 checks passed.
+
+---
+
+## Phase 11 — Frontend: auth screens
+
+**Done**
+- Scaffolded Next.js 16 (App Router) + TypeScript + Tailwind 4 + Zustand frontend under `frontend/`.
+- Design tokens in `app/globals.css` per `signal-design-system.md`: Signal Blue `#3A76F0`, light grays, pill buttons, ~18px radius, system font stack, 200ms transitions.
+- `lib/types.ts` — TS types mirroring backend payloads (User, Contact, Conversation, Message, WsEvent).
+- `lib/api.ts` — fetch wrapper attaching Bearer token from localStorage; `ApiError` with backend detail; `wsUrl()` helper.
+- `lib/store.ts` — Zustand store: auth state, `init()` restoring session from token, conversation list with `upsertConversation`, WS event reducer hook.
+- `components/OtpInput.tsx` — 6-digit OTP boxes with focus ring and hint.
+- `components/AuthFlow.tsx` — phone entry → OTP screen (hint `123456`) → profile setup for register; direct to app for login. Inline calm error banners per design system.
+- Routes: `/login`, `/register` under `(auth)` group; `/` redirects based on auth; `/chats` placeholder for the next phase.
+
+**Verified**
+- `tsc --noEmit` passes.
+- All three routes return 200 and render (login HTML contains AuthFlow with `mode:"login"`).
+- Backend healthy at `/` for the login → verify round trip.
+
+**Note**: `agent-browser` not installed — browser-level click-through deferred; user can visually verify at http://localhost:3000/login with both servers running.
