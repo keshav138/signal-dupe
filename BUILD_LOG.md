@@ -145,3 +145,23 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - `typing:stop` → other participant receives `typing {is_typing: false}`.
 - Disconnect → peer receives `presence {online: false, last_seen: <timestamp>}`; `last_seen` persisted on the users table.
 - Reconnect → peer receives `presence {online: true}`.
+
+---
+
+## Phase 9 — Seed script
+
+**Done**
+- Added `app/seed.py`:
+  - 7 users with realistic names, phone numbers, pravatar avatar URLs.
+  - Most users mutually connected as contacts (one pair deliberately not connected).
+  - 4 direct conversations with 8–17 messages each, timestamps spread over the last 3 days.
+  - 2 group conversations ("The Crew" 4 members, "Weekend Plans" 4 members) with multi-sender messages, one reply-to, and reactions.
+  - Mixed statuses: alice–bob direct has 2 unread (from bob), alice–eve has 1 unread (from eve).
+  - Reply-to resolved via a per-conversation id map (fixed a bug where Python `id(convo)` was reused across GC'd objects).
+  - Runs automatically on startup when the users table is empty (`seed_if_empty`), or manually via `python -m app.seed` (wipes and reseeds).
+
+**Verified**
+- Conversation list shows correct previews, unread counts, and sort order.
+- The Crew history contains one reply-to with quoted message and two reactions on the right messages.
+- Contacts list for alice shows 6 contacts.
+- App stays functional after reseed (register/login works).

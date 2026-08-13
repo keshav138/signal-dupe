@@ -8,12 +8,14 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.database import engine
 from app.routers import auth, contacts, conversations, messages
+from app.seed import seed_if_empty
 from app.ws.ws_router import router as ws_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    seed_if_empty()
     yield
 
 
