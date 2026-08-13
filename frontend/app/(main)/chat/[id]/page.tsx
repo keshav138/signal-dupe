@@ -1,10 +1,10 @@
 import MainShell from "@/components/MainShell";
-import EmptyChatPane from "@/components/EmptyChatPane";
+import ChatWindow from "@/components/ChatWindow";
 
-export default function ChatPlaceholderPage() {
+export default function ChatPage() {
   return (
     <MainShell>
-      <EmptyChatPane />
+      <ChatWindow />
     </MainShell>
   );
 }

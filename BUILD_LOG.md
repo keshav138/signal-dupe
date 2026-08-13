@@ -228,3 +228,31 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - `tsc --noEmit` and `next build` pass.
 
 **Note**: Dev-mode Turbopack had stale chunk issues; production build (`npm run build && npm run start`) verified working — dev-mode only used for future debugging.
+
+---
+
+## Phases 13–17 — Chat experience block (MUI)
+
+**Decisions**
+- User directive: build fast with pre-made component libraries (MUI v9), don't compromise on functionality. Batched the five frontend phases into one block.
+- Store rewrite embeds the WebSocket client directly (replaces the hook file) — one connection, auto-reconnect with heartbeat, status tracking.
+
+**Done**
+- `lib/store.ts` — full chat state: per-conversation messages, typing, presence, optimistic sends with `client_temp_id` reconciliation, read receipts, reactions, reply-to, group creation, contact actions; auto-reconnect WS with 1.5s backoff + 30s heartbeat.
+- `components/ChatWindow.tsx` — header with avatar, title, online/last-seen (direct) or member count (group), kebab menu, members dialog trigger.
+- `components/MessageList.tsx` — date separators, infinite scroll up (`before_id` pagination), smooth scroll to bottom on new messages.
+- `components/MessageBubble.tsx` — Signal palette (blue sent/white received), ✓/✓✓/blue-✓✓ status ticks, reply quote card, inline reaction chips, hover menu with Reply + 6 emoji reactions (toggle to remove).
+- `components/MessageInput.tsx` — multiline composer, Enter to send (Shift+Enter newline), typing debounce (2s stop), reply preview bar with cancel.
+- `components/TypingIndicator.tsx` — animated dots + "X is typing" (handles 1/2/N names).
+- `components/GroupCreateModal.tsx` — MUI Dialog with group name + contact multi-select checkboxes.
+- `components/GroupMembersModal.tsx` — member list with admin badge, admin can remove members (calls backend, revalidates).
+- `components/SettingsPane.tsx` — profile card, 6 placeholder sections with "Coming Soon", logout; `ConnectionToast` snackbar on WS loss.
+- Routes: `/chat/[id]` (real ChatWindow), `/settings`; conversation list got new-group button + clickable user avatar → settings; search contacts now clickable to start direct chats.
+
+**Verified** (agent-browser browser session as Alice + Python `websockets` client as Bob, production build)
+- Bob's message appears live in the browser; unread badge bumps then clears.
+- Alice's message sent from browser reaches Bob; Bob reacts ❤️ → reaction chip renders on the right bubble in the browser.
+- Read receipts: Alice's messages show `read` in store after Bob marks read; optimistic temp IDs reconciled to real message IDs.
+- Typing: Bob's `typing:start` renders "Bob Smith is typing" in the browser; clears on stop.
+- Settings page renders profile + all sections + logout.
+- `tsc --noEmit` and `next build` pass.

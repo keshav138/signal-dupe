@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Box, CircularProgress, Divider, Drawer } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import ConversationList from "@/components/ConversationList";
 import { useStore } from "@/lib/store";
-import { useWebSocket } from "@/lib/ws";
+import { ConnectionToast } from "./SettingsPane";
 
 export default function MainShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, initialized, init } = useStore();
-  useWebSocket();
 
   useEffect(() => {
     if (!initialized) init();
@@ -49,9 +48,13 @@ export default function MainShell({ children }: { children: React.ReactNode }) {
       >
         <ConversationList />
       </Box>
-      <Box component="main" sx={{ flex: 1, minWidth: 0, display: { xs: "none", md: "block" } }}>
+      <Box
+        component="main"
+        sx={{ flex: 1, minWidth: 0, display: { xs: "none", md: "block" } }}
+      >
         {children}
       </Box>
+      <ConnectionToast />
     </Box>
   );
 }

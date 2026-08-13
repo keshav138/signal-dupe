@@ -70,6 +70,7 @@ export interface Message {
   } | null;
   reactions: MessageReaction[];
   status: "sent" | "delivered" | "read";
+  client_temp_id?: string;
 }
 
 export type WsEvent =

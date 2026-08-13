@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   AppBar,
   Box,
+  IconButton,
   InputAdornment,
   List,
   ListItemAvatar,
@@ -15,13 +16,17 @@ import {
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import ConversationListItem, { UserAvatar } from "./ConversationListItem";
+import GroupCreateModal from "./GroupCreateModal";
 import { useStore } from "@/lib/store";
 
 export default function ConversationList() {
-  const { conversations, contacts, user } = useStore();
+  const { conversations, contacts, user, startDirectConversation } = useStore();
   const pathname = usePathname();
+  const router = useRouter();
   const [query, setQuery] = useState("");
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
 
   const activeConversationId = useMemo(() => {
     const match = pathname.match(/^\/chat\/(\d+)/);
@@ -51,11 +56,18 @@ export default function ConversationList() {
       <AppBar position="static" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: "divider" }}>
         <Toolbar sx={{ justifyContent: "space-between" }}>
           <Typography variant="h6">Chats</Typography>
-          <UserAvatar
-            name={user?.display_name ?? "?"}
-            avatarUrl={user?.avatar_url}
-            size={36}
-          />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <IconButton onClick={() => setGroupModalOpen(true)} aria-label="New group">
+              <GroupAddIcon />
+            </IconButton>
+            <Box onClick={() => router.push("/settings")} sx={{ cursor: "pointer" }}>
+              <UserAvatar
+                name={user?.display_name ?? "?"}
+                avatarUrl={user?.avatar_url}
+                size={36}
+              />
+            </Box>
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -93,7 +105,14 @@ export default function ConversationList() {
         )}
 
         {matchingContacts.map((contact) => (
-          <ListItemButton key={`contact-${contact.id}`} sx={{ px: 2, py: 1.5 }}>
+          <ListItemButton
+            key={`contact-${contact.id}`}
+            sx={{ px: 2, py: 1.5 }}
+            onClick={async () => {
+              const detail = await startDirectConversation(contact.contact_user_id);
+              router.push(`/chat/${detail.id}`);
+            }}
+          >
             <ListItemAvatar>
               <UserAvatar
                 name={contact.contact_user.display_name}
@@ -117,6 +136,8 @@ export default function ConversationList() {
           />
         ))}
       </List>
+
+      <GroupCreateModal open={groupModalOpen} onClose={() => setGroupModalOpen(false)} />
     </Box>
   );
 }

@@ -1,28 +1,108 @@
 import { create } from "zustand";
 import { api, clearToken, getToken, setToken } from "./api";
-import type { Contact, ConversationListItem, User, WsEvent } from "./types";
+import type {
+  Contact,
+  ConversationDetail,
+  ConversationListItem,
+  Message,
+  User,
+  WsEvent,
+} from "./types";
 
 interface AppState {
   user: User | null;
   token: string | null;
+  initialized: boolean;
   conversations: ConversationListItem[];
   contacts: Contact[];
-  initialized: boolean;
+  messages: Record<number, Message[]>; // conversation_id -> messages
+  typing: Record<number, number[]>; // conversation_id -> user_ids typing
+  presence: Record<number, boolean>; // user_id -> online
+  activeConversationId: number | null;
+  wsConnected: boolean;
+  replyTo: Message | null;
+  setReplyTo: (message: Message | null) => void;
+  sendMessage: (payload: {
+    conversation_id: number;
+    content: string;
+    reply_to_id: number | null;
+    client_temp_id: string;
+  }) => void;
+  sendTyping: (conversation_id: number, isTyping: boolean) => void;
+  sendRead: (conversation_id: number, lastMessageId: number) => void;
+  sendReaction: (message_id: number, emoji: string) => void;
+  removeReaction: (message_id: number) => void;
+  openConversation: (id: number) => Promise<void>;
+  setActiveConversation: (id: number | null) => void;
   init: () => Promise<void>;
   setAuth: (token: string, user: User) => void;
   logout: () => void;
   loadConversations: () => Promise<void>;
   loadContacts: () => Promise<void>;
   upsertConversation: (convo: ConversationListItem) => void;
+  getConversationDetail: (id: number) => Promise<ConversationDetail>;
   handleWsEvent: (event: WsEvent) => void;
+  setWsConnected: (connected: boolean) => void;
+  addContact: (contactUserId: number, nickname?: string) => Promise<Contact>;
+  removeContact: (contactId: number) => Promise<void>;
+  createGroup: (name: string, memberIds: number[]) => Promise<ConversationDetail>;
+  startDirectConversation: (userId: number) => Promise<ConversationDetail>;
+}
+
+let ws: WebSocket | null = null;
+let wsHeartbeat: ReturnType<typeof setInterval> | null = null;
+
+function connectWs(get: () => AppState, set: (partial: Partial<AppState>) => void) {
+  const token = get().token;
+  if (!token || typeof window === "undefined") return;
+  ws?.close();
+  const wsUrl =
+    (process.env.NEXT_PUBLIC_WS_URL ||
+      (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/^http/, "ws")) +
+    `/ws?token=${token}`;
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    set({ wsConnected: true });
+    wsHeartbeat = setInterval(() => {
+      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" }));
+    }, 30000);
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const event = JSON.parse(e.data) as WsEvent;
+      get().handleWsEvent(event);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  ws.onclose = () => {
+    if (wsHeartbeat) clearInterval(wsHeartbeat);
+    set({ wsConnected: false });
+    setTimeout(() => {
+      if (get().token) connectWs(get, set);
+    }, 1500);
+  };
+
+  ws.onerror = () => ws?.close();
 }
 
 export const useStore = create<AppState>((set, get) => ({
   user: null,
   token: null,
+  initialized: false,
   conversations: [],
   contacts: [],
-  initialized: false,
+  messages: {},
+  typing: {},
+  presence: {},
+  activeConversationId: null,
+  wsConnected: false,
+  replyTo: null,
+
+  setReplyTo: (message) => set({ replyTo: message }),
 
   init: async () => {
     const token = getToken();
@@ -33,6 +113,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const user = await api.get<User>("/auth/me");
       set({ token, user, initialized: true });
+      connectWs(get, set);
       await Promise.all([get().loadConversations(), get().loadContacts()]);
     } catch {
       clearToken();
@@ -43,13 +124,25 @@ export const useStore = create<AppState>((set, get) => ({
   setAuth: (token, user) => {
     setToken(token);
     set({ token, user });
+    connectWs(get, set);
     get().loadConversations();
     get().loadContacts();
   },
 
   logout: () => {
     clearToken();
-    set({ token: null, user: null, conversations: [], contacts: [] });
+    ws?.close();
+    set({
+      token: null,
+      user: null,
+      conversations: [],
+      contacts: [],
+      messages: {},
+      typing: {},
+      presence: {},
+      activeConversationId: null,
+      wsConnected: false,
+    });
   },
 
   loadConversations: async () => {
@@ -57,7 +150,7 @@ export const useStore = create<AppState>((set, get) => ({
       const conversations = await api.get<ConversationListItem[]>("/conversations");
       set({ conversations });
     } catch {
-      /* network issue; keep last known list */
+      /* keep last known */
     }
   },
 
@@ -66,7 +159,7 @@ export const useStore = create<AppState>((set, get) => ({
       const contacts = await api.get<Contact[]>("/contacts");
       set({ contacts });
     } catch {
-      /* network issue */
+      /* keep last known */
     }
   },
 
@@ -81,10 +174,184 @@ export const useStore = create<AppState>((set, get) => ({
     set({ conversations: next });
   },
 
-  handleWsEvent: (event) => {
-    if (event.type === "conversation:update") {
-      get().upsertConversation(event.conversation);
+  setActiveConversation: (id) => set({ activeConversationId: id }),
+
+  setWsConnected: (connected) => set({ wsConnected: connected }),
+
+  sendMessage: (payload) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    // Optimistic temp message.
+    const optimistic: Message = {
+      id: -Date.now(),
+      conversation_id: payload.conversation_id,
+      sender_id: get().user?.id ?? 0,
+      content: payload.content,
+      reply_to_id: payload.reply_to_id,
+      created_at: new Date().toISOString(),
+      sender: get().user,
+      reply_to: null,
+      reactions: [],
+      status: "sent",
+      client_temp_id: payload.client_temp_id,
+    };
+    const messages = get().messages;
+    set({
+      messages: {
+        ...messages,
+        [payload.conversation_id]: [
+          ...(messages[payload.conversation_id] || []),
+          optimistic,
+        ],
+      },
+    });
+    ws.send(JSON.stringify({ type: "message:send", ...payload }));
+  },
+
+  sendTyping: (conversation_id, isTyping) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(
+      JSON.stringify({
+        type: isTyping ? "typing:start" : "typing:stop",
+        conversation_id,
+      })
+    );
+  },
+
+  sendRead: (conversation_id, lastMessageId) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(
+      JSON.stringify({ type: "message:read", conversation_id, last_message_id: lastMessageId })
+    );
+  },
+
+  sendReaction: (message_id, emoji) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "reaction:add", message_id, emoji }));
+  },
+
+  removeReaction: (message_id) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "reaction:remove", message_id }));
+  },
+
+  openConversation: async (id) => {
+    set({ activeConversationId: id });
+    if (get().messages[id]) {
+      // Mark read if there are messages.
+      const msgs = get().messages[id];
+      if (msgs.length > 0) get().sendRead(id, msgs[msgs.length - 1].id);
+      return;
     }
+    try {
+      const messages = await api.get<Message[]>(`/conversations/${id}/messages?limit=50`);
+      set({ messages: { ...get().messages, [id]: messages } });
+      if (messages.length > 0) get().sendRead(id, messages[messages.length - 1].id);
+    } catch {
+      /* network issue */
+    }
+  },
+
+  getConversationDetail: (id) => api.get<ConversationDetail>(`/conversations/${id}`),
+
+  handleWsEvent: (event) => {
+    const messages = get().messages;
+    switch (event.type) {
+      case "conversation:update":
+        get().upsertConversation(event.conversation);
+        break;
+      case "message:new": {
+        const m = event.message;
+        const existing = messages[m.conversation_id] || [];
+        // Reconcile optimistic by client_temp_id.
+        let next = existing;
+        if (event.client_temp_id) {
+          const idx = existing.findIndex(
+            (x) => x.client_temp_id === event.client_temp_id && x.id < 0
+          );
+          if (idx !== -1) {
+            next = [...existing];
+            next[idx] = { ...m, client_temp_id: event.client_temp_id };
+          } else if (!existing.some((x) => x.id === m.id)) {
+            next = [...existing, m];
+          }
+        } else if (!existing.some((x) => x.id === m.id)) {
+          next = [...existing, m];
+        }
+        set({ messages: { ...messages, [m.conversation_id]: next } });
+        // If viewing, mark read.
+        if (get().activeConversationId === m.conversation_id) {
+          get().sendRead(m.conversation_id, m.id);
+        }
+        break;
+      }
+      case "message:status": {
+        const convoId = get().activeConversationId;
+        if (convoId === null) break;
+        const list = messages[convoId] || [];
+        const idx = list.findIndex((x) => x.id === event.message_id);
+        if (idx === -1) break;
+        const updated = [...list];
+        updated[idx] = { ...updated[idx], status: event.status };
+        set({ messages: { ...messages, [convoId]: updated } });
+        break;
+      }
+      case "typing": {
+        const current = get().typing[event.conversation_id] || [];
+        const filtered = current.filter((uid) => uid !== event.user_id);
+        if (event.is_typing) filtered.push(event.user_id);
+        set({
+          typing: { ...get().typing, [event.conversation_id]: filtered },
+        });
+        break;
+      }
+      case "presence":
+        set({ presence: { ...get().presence, [event.user_id]: event.online } });
+        break;
+      case "reaction:update": {
+        for (const [convoId, list] of Object.entries(messages)) {
+          const idx = list.findIndex((x) => x.id === event.message_id);
+          if (idx === -1) continue;
+          const updated = [...list];
+          updated[idx] = { ...updated[idx], reactions: event.reactions };
+          set({ messages: { ...messages, [Number(convoId)]: updated } });
+          break;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  },
+
+  addContact: async (contactUserId, nickname) => {
+    const contact = await api.post<Contact>("/contacts", {
+      contact_user_id: contactUserId,
+      nickname: nickname || null,
+    });
+    set({ contacts: [...get().contacts, contact] });
+    return contact;
+  },
+
+  removeContact: async (contactId) => {
+    await api.delete(`/contacts/${contactId}`);
+    set({ contacts: get().contacts.filter((c) => c.id !== contactId) });
+  },
+
+  createGroup: async (name, memberIds) => {
+    const detail = await api.post<ConversationDetail>("/conversations/group", {
+      name,
+      member_ids: memberIds,
+    });
+    await get().loadConversations();
+    return detail;
+  },
+
+  startDirectConversation: async (userId) => {
+    const detail = await api.post<ConversationDetail>("/conversations/direct", {
+      user_id: userId,
+    });
+    await get().loadConversations();
+    return detail;
   },
 }));
 
