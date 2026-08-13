@@ -40,3 +40,6 @@ Thumbs.db
 
 # Command Code internal state
 .commandcode/
+
+# Local commit message scratch
+.git-commit-msg.txt

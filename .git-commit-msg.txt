@@ -1,3 +1,0 @@
-Phase 2: add auth flow (OTP mock, JWT, /auth/me)
-
-Co-authored-by: CommandCodeBot <noreply@commandcode.ai>
