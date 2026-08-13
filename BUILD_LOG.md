@@ -118,3 +118,17 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - Bob sends `message:read` → Alice receives `message:status read` from Bob.
 - Bob's message reaches Alice and Carol.
 - History endpoint returns the group messages with correct worst-case status for the sender's view.
+
+---
+
+## Phase 7 — Reactions + reply-to
+
+**Done**
+- No new server code — reaction and reply handlers were written in Phase 5 (`handle_reaction_add/remove`, `reply_to_id` in `handle_message_send`). This phase verified them.
+
+**Verified** (two Python `websockets` clients)
+- Reaction add → both participants receive `reaction:update` with full reaction list.
+- Same user reacting again overwrites (Signal behavior) — one reaction per user.
+- Two users can react to the same message; remove deletes the row and broadcasts updated list.
+- Reply-to: sending with `reply_to_id` returns the quoted message payload (`reply_to.content`, `reply_to.sender_id`) in both `message:new` and the history endpoint.
+- History includes `reactions` on each message.
