@@ -132,3 +132,16 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - Two users can react to the same message; remove deletes the row and broadcasts updated list.
 - Reply-to: sending with `reply_to_id` returns the quoted message payload (`reply_to.content`, `reply_to.sender_id`) in both `message:new` and the history endpoint.
 - History includes `reactions` on each message.
+
+---
+
+## Phase 8 — Typing indicators + presence
+
+**Done**
+- No new server code — typing and presence were implemented in Phase 5. This phase verified them.
+
+**Verified** (two Python `websockets` clients)
+- `typing:start` → other participant receives `typing {is_typing: true}`; sender does NOT receive their own typing event.
+- `typing:stop` → other participant receives `typing {is_typing: false}`.
+- Disconnect → peer receives `presence {online: false, last_seen: <timestamp>}`; `last_seen` persisted on the users table.
+- Reconnect → peer receives `presence {online: true}`.
