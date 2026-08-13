@@ -165,3 +165,19 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - The Crew history contains one reply-to with quoted message and two reactions on the right messages.
 - Contacts list for alice shows 6 contacts.
 - App stays functional after reseed (register/login works).
+
+---
+
+## Phase 10 — Backend smoke test pass
+
+**Done**
+- Wrote and ran a comprehensive smoke test covering the entire backend checklist on a fresh seeded DB (scratchpad, not committed):
+  - Auth: register (request-otp, verify, duplicate rejection), login, `/auth/me` with/without token.
+  - Contacts: search, self-exclusion, `exclude_contacts`, add/list/remove.
+  - Conversations: direct get-or-create, group create with admin role, list with previews, non-admin PATCH rejected, admin PATCH, member add/remove.
+  - Messaging WS: direct send echo + delivered, `message:new` to recipient, read receipts, group message to second client, history pagination and reactions field.
+  - Reactions + reply-to: add/remove broadcast, reply payload includes quoted message.
+  - Typing + presence: start/stop reaches other client, offline presence on disconnect with `last_seen`.
+
+**Verified**
+- All 32 checks passed.
