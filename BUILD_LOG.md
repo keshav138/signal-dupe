@@ -104,3 +104,17 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - Bob receives `message:new` + `conversation:update` with `unread_count=1`.
 - Bob sends `message:read` → Alice receives `message:status read`.
 - History pagination: `before_id` returns earlier messages; full list returns correct statuses (`read`, `delivered`).
+
+---
+
+## Phase 6 — Group messaging
+
+**Done**
+- No new server code needed — the Phase 5 handlers already loop over all participants. This phase verified the multi-recipient flow end to end.
+
+**Verified** (three Python `websockets` clients: Alice, Bob, Carol in group #2)
+- Alice's group message reaches both Bob and Carol with the same message id.
+- Alice receives `message:status delivered` for both recipients.
+- Bob sends `message:read` → Alice receives `message:status read` from Bob.
+- Bob's message reaches Alice and Carol.
+- History endpoint returns the group messages with correct worst-case status for the sender's view.
