@@ -41,3 +41,22 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - Register verify with `123456` → returns `access_token` and user object.
 - `/auth/me` with token → returns user; without token → HTTP 401.
 - Login OTP request + verify → returns JWT + user.
+
+---
+
+## Phase 3 — Contacts + user search
+
+**Done**
+- Added `app/schemas/contact.py` (contact create/out models).
+- Added `app/routers/contacts.py` with:
+  - `GET /users/search?q=&exclude_contacts=` — matches username/phone/display name, excludes self, optional exclude existing contacts.
+  - `GET /contacts` — list with joined contact user info.
+  - `POST /contacts` — add contact (rejects self, duplicates, missing users).
+  - `DELETE /contacts/{id}` — remove own contact.
+- Added `Contact.contact_user` relationship (needed for `joinedload`).
+- Registered contacts router in `app/main.py`.
+
+**Verified**
+- User search returns Bob when Alice searches, returns `[]` when searching self (`alice`).
+- `exclude_contacts=true` hides existing contacts.
+- Add contact works; duplicate add returns 400; delete returns `{"message":"Contact removed"}`.

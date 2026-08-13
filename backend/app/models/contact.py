@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, utcnow
 
@@ -17,3 +17,5 @@ class Contact(Base):
     contact_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     nickname: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    contact_user: Mapped["User"] = relationship(foreign_keys=[contact_user_id])
