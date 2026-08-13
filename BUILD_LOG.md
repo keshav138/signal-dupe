@@ -83,3 +83,24 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - Group create with 3 members; creator is admin.
 - List returns group first (most recent) and direct second, with `other_user` for direct.
 - Non-admin member add → 403; admin add/remove works; group name PATCH works.
+
+---
+
+## Phase 5 — Messaging core over WebSocket
+
+**Done**
+- Added `app/ws/connection_manager.py` — in-memory `dict[user_id, WebSocket]` registry with connect/disconnect/send/broadcast helpers; replaces old connections on reconnect.
+- Added `app/ws/serializers.py` — message serialization (sender, reply_to, reactions, status from viewer's perspective), conversation list item serialization for `conversation:update` broadcasts.
+- Added `app/ws/handlers.py` — server-side handlers:
+  - `message:send` — insert message, insert `sent` status rows for all other participants, bump `updated_at`, broadcast `message:new` (with `client_temp_id`) + `conversation:update` to all participants; flip connected recipients' status to `delivered` and notify sender.
+  - `message:read` — flip unread rows to `read` up to `last_message_id`, update `last_read_message_id`, notify each sender.
+- Added `app/ws/ws_router.py` — `/ws?token=<jwt>` endpoint; validates token, registers in manager, broadcasts presence on connect/disconnect, routes client events to handlers.
+- Added `app/routers/messages.py` — `GET /conversations/{id}/messages?before_id=&limit=` with cursor pagination.
+- Presence fix: newly connected clients receive presence events for peers already online.
+
+**Verified** (two Python `websockets` clients, Alice + Bob)
+- Bob receives `presence` when Alice connects.
+- Alice sends message → gets `message:new` echo with `client_temp_id` and `message:status delivered` (Bob connected).
+- Bob receives `message:new` + `conversation:update` with `unread_count=1`.
+- Bob sends `message:read` → Alice receives `message:status read`.
+- History pagination: `before_id` returns earlier messages; full list returns correct statuses (`read`, `delivered`).
