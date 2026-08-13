@@ -309,3 +309,16 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - API: `username=ali` → 404 (partial rejected); `username=alice` (self) → 404; `username=bob` → 200.
 - Browser (two sessions): registered fresh `kshv`, typed `al` → no results before Enter, `alice` + Enter → Alice appears, clicked → direct chat created, message sent and visible on Alice's side.
 - Alice opened The Crew → members modal → typed `kshv` + Enter → "Member added", group went 4 → 5 members with Keshav Maiya listed; kshv's chat list now shows The Crew.
+
+---
+
+## Prep — Postgres-ready DB config
+
+**Done**
+- `app/db/database.py`: SQLite branch keeps `check_same_thread=False`; anything else (Postgres) gets `pool_pre_ping=True` — selected via `DATABASE_URL`.
+- `requirements.txt`: added `psycopg[binary]` for Postgres on Railway.
+- `.env.example`: documents the production `DATABASE_URL` format (`postgresql+psycopg://...`).
+- Local dev default unchanged: SQLite file.
+
+**Note**
+- Railway gives a Postgres URL with `postgres://` scheme — SQLAlchemy 2.x requires `postgresql+psycopg://`. Railway's dashboard shows a "Postgres URL" that already uses `postgresql://` in most cases; if it starts with `postgres://`, replace the prefix with `postgresql+psycopg://` when setting the env var.
