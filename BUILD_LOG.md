@@ -20,3 +20,24 @@ This file tracks, per phase, what was implemented and any decisions made during 
 - `python -c "from app.main import app"` imports cleanly.
 - Schema generation produced all 7 expected tables in `signal.db`.
 - Server boots on `127.0.0.1:8000` and `/` returns `{"status":"ok"}`.
+
+---
+
+## Phase 2 — Auth
+
+**Done**
+- Added `app/schemas/auth.py` and `app/schemas/user.py` (Pydantic request/response models).
+- Added `app/core/deps.py` with `get_current_user` dependency (HTTPBearer + JWT decode).
+- Added `app/routers/auth.py` with:
+  - `POST /auth/register/request-otp` — rejects already-registered numbers.
+  - `POST /auth/register/verify` — checks fixed OTP, uniqueness of phone/username, creates user, returns JWT + user.
+  - `POST /auth/login/request-otp` — rejects unregistered numbers.
+  - `POST /auth/login/verify` — checks fixed OTP, returns JWT + user.
+  - `GET /auth/me` — returns current user from bearer token.
+- Registered the auth router in `app/main.py`.
+
+**Verified**
+- Register OTP request → `{"message":"OTP sent to +15550001111"}`.
+- Register verify with `123456` → returns `access_token` and user object.
+- `/auth/me` with token → returns user; without token → HTTP 401.
+- Login OTP request + verify → returns JWT + user.

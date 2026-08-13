@@ -7,6 +7,7 @@ import app.models  # noqa: F401  (register models with Base.metadata)
 from app.core.config import settings
 from app.db.base import Base
 from app.db.database import engine
+from app.routers import auth
 
 
 @asynccontextmanager
@@ -29,3 +30,6 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {"status": "ok"}
+
+
+app.include_router(auth.router)
