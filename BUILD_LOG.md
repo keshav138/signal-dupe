@@ -289,3 +289,23 @@ This file tracks, per phase, what was implemented and any decisions made during 
 **Verified**
 - Store check: optimistic reply message has full `reply_to` object with quoted content before any server echo.
 - DOM trace + vision screenshot: the "fixed reply flow" blue bubble shows a visible quote box ("You" + "Hi") with blue left border above the message text.
+
+---
+
+## Feature — username-based user discovery + group add
+
+**Requirement**
+- Fresh account (e.g. `kshv` / Keshav Maiya) can find Alice Johnson by her unique username without knowing her number, then chat with her.
+- Lookup must only happen after typing the FULL username and pressing Enter — no incremental brute-forcing via partial letters.
+- Once chatting, Alice can add kshv to groups.
+
+**Done**
+- Backend: `GET /users/lookup?username=` — exact full-username match only (`func.lower(User.username) == username.strip().lower()`), excludes self, 404 otherwise. No partial/substring matching = no enumeration.
+- Frontend store: `lookupUserByUsername` action calling the endpoint, returning null on 404.
+- ConversationList: search box fires the lookup ONLY on Enter; shows "Press Enter to find someone by their full username" hint; result renders as "Alice Johnson @alice — press to start chatting"; typing again invalidates the previous lookup. Not-found state shows a calm message.
+- GroupMembersModal: admins get an "Add someone by username (press Enter)" input using the same exact lookup; adding calls `POST /conversations/{id}/members` and refreshes the member list.
+
+**Verified**
+- API: `username=ali` → 404 (partial rejected); `username=alice` (self) → 404; `username=bob` → 200.
+- Browser (two sessions): registered fresh `kshv`, typed `al` → no results before Enter, `alice` + Enter → Alice appears, clicked → direct chat created, message sent and visible on Alice's side.
+- Alice opened The Crew → members modal → typed `kshv` + Enter → "Member added", group went 4 → 5 members with Keshav Maiya listed; kshv's chat list now shows The Crew.

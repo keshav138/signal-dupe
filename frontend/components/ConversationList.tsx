@@ -17,16 +17,27 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import ConversationListItem, { UserAvatar } from "./ConversationListItem";
 import GroupCreateModal from "./GroupCreateModal";
 import { useStore } from "@/lib/store";
+import type { User } from "@/lib/types";
 
 export default function ConversationList() {
-  const { conversations, contacts, user, startDirectConversation } = useStore();
+  const {
+    conversations,
+    contacts,
+    user,
+    startDirectConversation,
+    lookupUserByUsername,
+  } = useStore();
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [exactUser, setExactUser] = useState<User | null>(null);
+  const [lookupState, setLookupState] = useState<"idle" | "searching" | "notfound">("idle");
+  const [submittedQuery, setSubmittedQuery] = useState("");
 
   const activeConversationId = useMemo(() => {
     const match = pathname.match(/^\/chat\/(\d+)/);
@@ -50,6 +61,35 @@ export default function ConversationList() {
     const q = query.toLowerCase();
     return contacts.filter((c) => c.contact_user.display_name.toLowerCase().includes(q));
   }, [contacts, query]);
+
+  // Only fire the exact-username lookup when the user presses Enter.
+  const handleSearchKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter") return;
+    const username = query.trim();
+    if (!username) {
+      setExactUser(null);
+      setLookupState("idle");
+      return;
+    }
+    setLookupState("searching");
+    setExactUser(null);
+    const found = await lookupUserByUsername(username);
+    if (found) {
+      setExactUser(found);
+      setLookupState("idle");
+    } else {
+      setLookupState("notfound");
+      setSubmittedQuery(username);
+    }
+  };
+
+  const startChatWith = async (userId: number) => {
+    const detail = await startDirectConversation(userId);
+    setQuery("");
+    setExactUser(null);
+    setLookupState("idle");
+    router.push(`/chat/${detail.id}`);
+  };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -77,7 +117,13 @@ export default function ConversationList() {
           fullWidth
           placeholder="Search chats and contacts"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            // Typing invalidates any previous Enter-submitted lookup.
+            setExactUser(null);
+            setLookupState("idle");
+          }}
+          onKeyDown={handleSearchKeyDown}
           slotProps={{
             input: {
               startAdornment: (
@@ -88,30 +134,66 @@ export default function ConversationList() {
             },
           }}
         />
+        {query.trim() && (
+          <Typography variant="caption" sx={{ display: "block", mt: 0.5, px: 0.5 }}>
+            Press Enter to find someone by their full username
+          </Typography>
+        )}
       </Box>
 
       <List sx={{ flex: 1, overflowY: "auto", pt: 0 }}>
-        {filteredConversations.length === 0 && matchingContacts.length === 0 && (
-          <Box sx={{ py: 8, textAlign: "center", px: 3 }}>
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {query ? "No results found" : "No conversations yet"}
-            </Typography>
-            {!query && (
-              <Typography variant="caption">
-                Start a conversation to see it here.
-              </Typography>
-            )}
+        {/* Exact username match (Enter-submitted) */}
+        {exactUser && (
+          <ListItemButton sx={{ px: 2, py: 1.5 }} onClick={() => startChatWith(exactUser.id)}>
+            <ListItemAvatar>
+              <UserAvatar name={exactUser.display_name} avatarUrl={exactUser.avatar_url} size={40} />
+            </ListItemAvatar>
+            <ListItemText
+              primary={exactUser.display_name}
+              secondary={`@${exactUser.username} — press to start chatting`}
+            />
+            <PersonAddIcon color="primary" fontSize="small" />
+          </ListItemButton>
+        )}
+
+        {lookupState === "searching" && (
+          <Box sx={{ py: 2, textAlign: "center" }}>
+            <Typography variant="body2">Looking up @{query.trim()}…</Typography>
           </Box>
         )}
+
+        {lookupState === "notfound" && (
+          <Box sx={{ py: 2, textAlign: "center", px: 3 }}>
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              No user found with username “{submittedQuery}”
+            </Typography>
+            <Typography variant="caption">
+              Usernames must be typed in full to find someone.
+            </Typography>
+          </Box>
+        )}
+
+        {filteredConversations.length === 0 &&
+          matchingContacts.length === 0 &&
+          !exactUser &&
+          lookupState === "idle" && (
+            <Box sx={{ py: 8, textAlign: "center", px: 3 }}>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {query ? "No results found" : "No conversations yet"}
+              </Typography>
+              {!query && (
+                <Typography variant="caption">
+                  Start a conversation to see it here.
+                </Typography>
+              )}
+            </Box>
+          )}
 
         {matchingContacts.map((contact) => (
           <ListItemButton
             key={`contact-${contact.id}`}
             sx={{ px: 2, py: 1.5 }}
-            onClick={async () => {
-              const detail = await startDirectConversation(contact.contact_user_id);
-              router.push(`/chat/${detail.id}`);
-            }}
+            onClick={() => startChatWith(contact.contact_user_id)}
           >
             <ListItemAvatar>
               <UserAvatar

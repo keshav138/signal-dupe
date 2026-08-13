@@ -10,13 +10,16 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  InputAdornment,
   List,
   ListItem,
   ListItemAvatar,
   ListItemText,
+  TextField,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { UserAvatar } from "./ConversationListItem";
 import { useStore } from "@/lib/store";
 import { api } from "@/lib/api";
@@ -35,8 +38,10 @@ export default function GroupMembersModal({
   detail: ConversationDetail;
   onDetailChange: (d: ConversationDetail) => void;
 }) {
-  const { user } = useStore();
+  const { user, lookupUserByUsername } = useStore();
   const [busy, setBusy] = useState(false);
+  const [username, setUsername] = useState("");
+  const [addState, setAddState] = useState<"idle" | "searching" | "notfound" | "added">("idle");
   const isAdmin = detail.participants.some(
     (p) => p.user_id === user?.id && p.role === "admin"
   );
@@ -49,7 +54,37 @@ export default function GroupMembersModal({
       );
       onDetailChange(updated);
     } catch {
-      /* show nothing; snackbar in later phase */
+      /* no-op */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const addMemberByUsername = async () => {
+    const name = username.trim();
+    if (!name || busy) return;
+    setAddState("searching");
+    const found = await lookupUserByUsername(name);
+    if (!found) {
+      setAddState("notfound");
+      return;
+    }
+    if (detail.participants.some((p) => p.user_id === found.id)) {
+      setAddState("added");
+      setUsername("");
+      return;
+    }
+    setBusy(true);
+    try {
+      const updated = await api.post<ConversationDetail>(
+        `/conversations/${conversationId}/members`,
+        { user_id: found.id }
+      );
+      onDetailChange(updated);
+      setAddState("added");
+      setUsername("");
+    } catch {
+      setAddState("notfound");
     } finally {
       setBusy(false);
     }
@@ -62,6 +97,48 @@ export default function GroupMembersModal({
         <Chip label={`${detail.participants.length} members`} size="small" />
       </DialogTitle>
       <DialogContent>
+        {isAdmin && (
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Add someone by username (press Enter)"
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setAddState("idle");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addMemberByUsername();
+              }}
+              disabled={busy}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonAddIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            {addState === "searching" && (
+              <Typography variant="caption" sx={{ display: "block", mt: 0.5 }}>
+                Looking up @{username.trim()}…
+              </Typography>
+            )}
+            {addState === "notfound" && (
+              <Typography variant="caption" sx={{ display: "block", mt: 0.5, color: "error.main" }}>
+                No user found with that username.
+              </Typography>
+            )}
+            {addState === "added" && (
+              <Typography variant="caption" sx={{ display: "block", mt: 0.5, color: "primary.main" }}>
+                Member added.
+              </Typography>
+            )}
+          </Box>
+        )}
         <List dense>
           {detail.participants.map((p) => (
             <ListItem

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.deps import get_current_user
@@ -10,6 +10,26 @@ from app.schemas.contact import ContactCreate, ContactOut
 from app.schemas.user import UserSearchResult
 
 router = APIRouter(tags=["contacts"])
+
+
+@router.get("/users/lookup", response_model=UserSearchResult)
+def lookup_user(
+    username: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Exact, full-username lookup only — no partial matches (anti-enumeration)."""
+    user = (
+        db.query(User)
+        .filter(
+            User.id != current_user.id,
+            func.lower(User.username) == username.strip().lower(),
+        )
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="No user found with that username")
+    return user
 
 
 @router.get("/users/search", response_model=list[UserSearchResult])

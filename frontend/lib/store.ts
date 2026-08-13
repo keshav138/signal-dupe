@@ -47,6 +47,7 @@ interface AppState {
   removeContact: (contactId: number) => Promise<void>;
   createGroup: (name: string, memberIds: number[]) => Promise<ConversationDetail>;
   startDirectConversation: (userId: number) => Promise<ConversationDetail>;
+  lookupUserByUsername: (username: string) => Promise<User | null>;
 }
 
 let ws: WebSocket | null = null;
@@ -378,6 +379,16 @@ export const useStore = create<AppState>((set, get) => ({
     });
     await get().loadConversations();
     return detail;
+  },
+
+  lookupUserByUsername: async (username) => {
+    try {
+      return await api.get<User>(
+        `/users/lookup?username=${encodeURIComponent(username.trim())}`
+      );
+    } catch {
+      return null;
+    }
   },
 }));
 
