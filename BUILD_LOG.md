@@ -326,3 +326,18 @@ This file tracks, per phase, what was implemented and any decisions made during 
 **Update**
 - Added `Settings.sqlalchemy_database_url` that auto-normalizes `postgres://` / `postgresql://` → `postgresql+psycopg://` — no manual URL editing needed on Railway.
 - Added `backend/railway.json` (Nixpacks build, `uvicorn app.main:app --host 0.0.0.0 --port $PORT` start command).
+
+---
+
+## Deploy + README
+
+**Done**
+- Deployed backend to Railway (`signal-dupe-production.up.railway.app`) with linked Postgres; seed data auto-loaded; CORS configured for the Vercel origin.
+- Deployed frontend to Vercel (`signal-dupe.vercel.app`) with `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` pointing at Railway.
+- Wrote `README.md`: title, live links, tech stack, architecture overview + folder tree, setup instructions (incl. the `NODE_ENV` npm-install gotcha), env var tables, database schema, REST + WebSocket protocol tables, feature list, and assumptions/mocked behavior.
+
+**Verified**
+- Railway root returns `{"status":"ok"}`; seeded login (`+15550001111` / `123456`) returns Alice with 5 conversations (unread: Bob=2, Eve=1).
+- CORS preflight from `https://signal-dupe.vercel.app` returns 200 with correct `access-control-allow-origin`.
+- Vercel login page renders; deployed frontend points its fetches at the Railway backend.
+- Note: user's home network DNS refused to resolve `*.up.railway.app`; works on alternate DNS (1.1.1.1). Deployment itself unaffected.
