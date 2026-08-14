@@ -322,3 +322,7 @@ This file tracks, per phase, what was implemented and any decisions made during 
 
 **Note**
 - Railway gives a Postgres URL with `postgres://` scheme — SQLAlchemy 2.x requires `postgresql+psycopg://`. Railway's dashboard shows a "Postgres URL" that already uses `postgresql://` in most cases; if it starts with `postgres://`, replace the prefix with `postgresql+psycopg://` when setting the env var.
+
+**Update**
+- Added `Settings.sqlalchemy_database_url` that auto-normalizes `postgres://` / `postgresql://` → `postgresql+psycopg://` — no manual URL editing needed on Railway.
+- Added `backend/railway.json` (Nixpacks build, `uvicorn app.main:app --host 0.0.0.0 --port $PORT` start command).
